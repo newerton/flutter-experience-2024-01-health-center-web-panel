@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_experience_health_center_web_panel/src/models/panel_checkin_model.dart';
 import 'package:flutter_experience_health_center_web_panel/src/modules/home/home_controller.dart';
+import 'package:flutter_experience_health_center_web_panel/src/modules/home/widgets/home_password_tile_widget.dart';
+import 'package:flutter_experience_health_center_web_panel/src/modules/home/widgets/home_principal_widget.dart';
 import 'package:flutter_getit/flutter_getit.dart';
 import 'package:health_center_core/health_center_core.dart';
-import 'package:validatorless/validatorless.dart';
+import 'package:signals_flutter/signals_flutter.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,24 +17,40 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with MessagesViewMixin {
   final controller = Injector.get<HomeController>();
 
-  final formKey = GlobalKey<FormState>();
-  final numberEC = TextEditingController();
-
   @override
   void initState() {
     messageListener(controller);
+    controller.listenerPanelCheckin();
     super.initState();
   }
 
   @override
   void dispose() {
-    numberEC.dispose();
+    controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final sizeOf = MediaQuery.sizeOf(context);
+
+    final PanelCheckinModel? current;
+    final PanelCheckinModel? lastCall;
+    final List<PanelCheckinModel>? others;
+
+    final listPanel = controller.panelData.watch(context);
+
+    current = listPanel.firstOrNull;
+    if (listPanel.isNotEmpty) {
+      listPanel.removeAt(0);
+    }
+
+    lastCall = listPanel.firstOrNull;
+    if (listPanel.isNotEmpty) {
+      listPanel.removeAt(0);
+    }
+
+    others = listPanel;
 
     return Scaffold(
       appBar: HealthCenterAppBar(
@@ -53,55 +71,62 @@ class _HomePageState extends State<HomePage> with MessagesViewMixin {
           )
         ],
       ),
-      body: Center(
-          child: Container(
-        width: sizeOf.width * 0.5,
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: HealthCenterTheme.orangeColor)),
+      body: SingleChildScrollView(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Welcome!', style: HealthCenterTheme.titleStyle),
-            const SizedBox(height: 16),
-            const Text(
-              'Fill in the number of the counter you are working at',
-              textAlign: TextAlign.center,
-              style: HealthCenterTheme.subTitleSmallStyle,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                lastCall != null
+                    ? SizedBox(
+                        width: sizeOf.width * 0.4,
+                        child: HomePrincipalWidget(
+                            passwordLabel: 'Previous password',
+                            password: lastCall.password,
+                            deskNumber: lastCall.attendantDesk
+                                .toString()
+                                .padLeft(2, '0'),
+                            labelColor: HealthCenterTheme.blueColor,
+                            buttonColor: HealthCenterTheme.orangeColor),
+                      )
+                    : const SizedBox.shrink(),
+                const SizedBox(width: 28),
+                current != null
+                    ? SizedBox(
+                        width: sizeOf.width * 0.4,
+                        child: HomePrincipalWidget(
+                            passwordLabel: 'Calling password',
+                            password: current.password,
+                            deskNumber: current.attendantDesk
+                                .toString()
+                                .padLeft(2, '0'),
+                            labelColor: HealthCenterTheme.orangeColor,
+                            buttonColor: HealthCenterTheme.blueColor),
+                      )
+                    : const SizedBox.shrink()
+              ],
             ),
-            const SizedBox(height: 32),
-            Form(
-              key: formKey,
-              child: TextFormField(
-                controller: numberEC,
-                keyboardType: TextInputType.number,
-                validator: Validatorless.multiple([
-                  Validatorless.required('Field required'),
-                  Validatorless.number('Invalid number')
-                ]),
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
-                decoration:
-                    const InputDecoration(label: Text('Number of the counter')),
-              ),
+            const Divider(color: HealthCenterTheme.orangeColor),
+            const SizedBox(height: 24),
+            Text('Latest calls',
+                style: HealthCenterTheme.titleSmallStyle.copyWith(
+                    color: HealthCenterTheme.orangeColor,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            Wrap(
+              runAlignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: others
+                  .map((e) => HomePasswordTileWidget(
+                        password: e.password,
+                        ticketOffice: e.attendantDesk.toString(),
+                      ))
+                  .toList(),
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: sizeOf.width * 0.8,
-              height: 48,
-              child: ElevatedButton(
-                  onPressed: () {
-                    final valid = formKey.currentState?.validate() ?? false;
-                    if (valid) {}
-                  },
-                  child: const Text('Call next patient')),
-            )
           ],
         ),
-      )),
+      ),
     );
   }
 }

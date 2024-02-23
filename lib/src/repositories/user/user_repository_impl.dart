@@ -17,7 +17,7 @@ class UserRepositoryImpl implements UserRepository {
       final Response(data: {'access_token': accessToken}) =
           await restClient.post(
         '/auth',
-        data: {'email': email, 'password': password},
+        data: {'email': email, 'password': password, 'admin': true},
       );
 
       return Right(accessToken);
